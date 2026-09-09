@@ -1,0 +1,258 @@
+.title {
+  font-family: var(--tm-sans);
+  font-size: 34px;
+  font-weight: 700;
+  letter-spacing: -0.4px;
+  margin-bottom: 28px;
+}
+
+.left {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+.sectionHead {
+  font-size: 11.5px;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--tm-text-mute);
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
+.optionList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.optionCard {
+  display: flex;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  cursor: pointer;
+  text-align: left;
+  background: var(--tm-panel);
+  border: 1px solid var(--tm-line-c);
+  font-family: var(--tm-sans);
+}
+.optionCard[data-active='true'] {
+  border: 1.5px solid var(--tm-primary);
+}
+
+.optionCardRadio {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 16px;
+  border-radius: 14px;
+  cursor: pointer;
+  text-align: left;
+  background: var(--tm-panel);
+  border: 1px solid var(--tm-line-c);
+  font-family: var(--tm-sans);
+  width: 100%;
+}
+.optionCardRadio[data-active='true'] {
+  border: 1.5px solid var(--tm-primary);
+}
+
+.radioDot {
+  width: 18px;
+  height: 18px;
+  border-radius: 99px;
+  border: 1.5px solid var(--tm-line-c);
+  flex-shrink: 0;
+}
+.radioDot[data-active='true'] {
+  border: 5px solid var(--tm-primary);
+}
+
+.optionFlex {
+  flex: 1;
+}
+.optionName {
+  font-size: 13.5px;
+  font-weight: 500;
+}
+.optionSub {
+  font-size: 12px;
+  color: var(--tm-text-soft);
+  margin-top: 3px;
+}
+.optionSubSmall {
+  font-size: 11.5px;
+  color: var(--tm-text-mute);
+}
+
+.summaryCol {
+  position: sticky;
+  top: 96px;
+}
+.summaryCard {
+  padding: 20px;
+  border-radius: 16px;
+  background: var(--tm-panel);
+  border: 1px solid var(--tm-line-c);
+}
+.summaryHead {
+  font-size: 11px;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--tm-text-mute);
+  font-weight: 600;
+  margin-bottom: 14px;
+}
+.orderItems {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.orderItem {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.orderItemImg {
+  width: 44px;
+  height: 50px;
+  border-radius: 8px;
+  background: var(--tm-beige-c);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.orderItemImg img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.orderItemBody {
+  flex: 1;
+  min-width: 0;
+}
+.orderItemName {
+  font-size: 13px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.orderItemQty {
+  font-size: 11px;
+  color: var(--tm-text-mute);
+}
+
+.summaryRow {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13.5px;
+  margin-bottom: 10px;
+  color: var(--tm-text-soft);
+}
+.totalRow {
+  display: flex;
+  justify-content: space-between;
+  font-size: 17px;
+  font-weight: 600;
+  margin-bottom: 20px;
+}
+.mono {
+  font-family: var(--tm-mono);
+  color: var(--tm-text);
+}
+
+.placeBtn {
+  width: 100%;
+  padding: 15px;
+  border-radius: 99px;
+  font-size: 14px;
+  font-weight: 600;
+}
+.terms {
+  font-size: 11px;
+  color: var(--tm-text-mute);
+  line-height: 1.5;
+  margin-top: 12px;
+}
+
+.confirmWrap {
+  max-width: 560px;
+  margin: 0 auto;
+  text-align: center;
+}
+.confirmIcon {
+  width: 88px;
+  height: 88px;
+  border-radius: 99px;
+  margin: 0 auto;
+  background: var(--tm-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.confirmTitle {
+  font-family: var(--tm-sans);
+  font-size: 34px;
+  font-weight: 700;
+  letter-spacing: -0.4px;
+  margin: 26px 0 8px;
+}
+.confirmBody {
+  font-size: 14.5px;
+  color: var(--tm-text-soft);
+  line-height: 1.6;
+}
+.confirmCard {
+  margin-top: 28px;
+  padding: 18px 20px;
+  border-radius: 16px;
+  background: var(--tm-panel);
+  border: 1px solid var(--tm-line-c);
+  text-align: left;
+}
+.confirmLabel {
+  font-size: 11px;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--tm-text-mute);
+  font-weight: 600;
+}
+.confirmOrderRow {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 8px;
+  font-size: 15px;
+}
+.confirmTotal {
+  font-weight: 500;
+}
+.confirmDivider {
+  height: 1px;
+  background: var(--tm-line-c);
+  margin: 12px 0;
+}
+.confirmDelivery {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  color: var(--tm-text-soft);
+}
+.backHomeBtn {
+  margin-top: 30px;
+  padding: 15px 28px;
+  border-radius: 99px;
+  background: var(--tm-text);
+  color: var(--tm-bg);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+@media (max-width: 900px) {
+  .summaryCol {
+    position: static;
+  }
+}
