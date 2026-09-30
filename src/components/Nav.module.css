@@ -25,6 +25,9 @@
   letter-spacing: -0.3px;
   color: var(--tm-text);
   flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .links {

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Icon } from './Icon';
+import { LogoMark } from './LogoMark';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
 import { CATEGORIES } from '../data/products';
@@ -31,6 +32,7 @@ export function Nav() {
     <header className={styles.header}>
       <div className={`tm-container ${styles.bar}`}>
         <Link to="/" className={styles.logo}>
+          <LogoMark />
           Trek Mate
         </Link>
 

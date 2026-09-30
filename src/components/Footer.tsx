@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { CATEGORIES } from '../data/products';
+import { LogoMark } from './LogoMark';
 import styles from './Footer.module.css';
 
 export function Footer() {
@@ -11,7 +12,10 @@ export function Footer() {
     <footer className={styles.footer}>
       <div className={`tm-container tm-footer-grid ${styles.grid}`}>
         <div>
-          <div className={styles.brand}>Trek Mate</div>
+          <div className={styles.brand}>
+            <LogoMark size={20} />
+            Trek Mate
+          </div>
           <p className={styles.blurb}>
             Field-tested gear from independent makers, scored on weight, durability, and pack volume — so you spend
             less time guessing and more time on trail.
