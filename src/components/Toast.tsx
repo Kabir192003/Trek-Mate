@@ -1,19 +1,37 @@
+import s from './Overlay.module.css';
 import { Icon } from './Icon';
 import { useToast } from '../context/ToastContext';
-import styles from './Toast.module.css';
 
 export function Toast() {
-  const { toast } = useToast();
-  if (!toast) return null;
+  const { toast, dismiss } = useToast();
   return (
-    <div className={styles.toast} role="status" aria-live="polite">
-      <div className={styles.iconWrap}>
-        <Icon name="check" size={14} color="#0e1410" />
-      </div>
-      <div>
-        <div className={styles.msg}>{toast.msg}</div>
-        {toast.sub && <div className={styles.sub}>{toast.sub}</div>}
-      </div>
+    <div className={s.toastRegion} role="status" aria-live="polite">
+      {toast && (
+        <div key={toast.id} className={s.toast}>
+          <span className={s.toastIcon}>
+            <Icon name="check" size={16} />
+          </span>
+          <div className={s.toastText}>
+            <strong>{toast.title}</strong>
+            {toast.sub && <span>{toast.sub}</span>}
+          </div>
+          {toast.action && (
+            <button
+              type="button"
+              className={s.toastAction}
+              onClick={() => {
+                toast.action?.run();
+                dismiss();
+              }}
+            >
+              {toast.action.label}
+            </button>
+          )}
+          <button type="button" className={s.toastClose} onClick={dismiss} aria-label="Dismiss">
+            <Icon name="close" size={14} />
+          </button>
+        </div>
+      )}
     </div>
   );
 }

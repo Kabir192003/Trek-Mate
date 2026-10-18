@@ -1,0 +1,146 @@
+.page {
+  padding-top: 40px;
+}
+
+.hero {
+  max-width: 760px;
+}
+
+.check {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--lichen-tint);
+  color: var(--lichen);
+  margin-bottom: 18px;
+}
+
+.hero h1 {
+  margin-top: 8px;
+}
+
+.lede {
+  color: var(--ink-2);
+  font-size: 16px;
+  margin-top: 12px;
+}
+
+.timeline {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-top: 28px;
+  font-size: 13px;
+  color: var(--ink-3);
+}
+
+.timeline li {
+  position: relative;
+  display: grid;
+  gap: 8px;
+  padding-top: 2px;
+}
+
+.timeline li::before {
+  content: '';
+  position: absolute;
+  top: 7px;
+  left: 16px;
+  right: 0;
+  height: 2px;
+  background: var(--line);
+}
+
+.timeline li:last-child::before {
+  display: none;
+}
+
+.dot {
+  position: relative;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid var(--line-2);
+  background: var(--stone);
+}
+
+.timeline li[data-done='true'] {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.timeline li[data-done='true'] .dot {
+  border-color: var(--forest);
+  background: var(--forest);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  gap: 16px;
+  margin-top: 36px;
+  align-items: start;
+}
+
+.panel {
+  padding: 22px;
+  display: grid;
+  gap: 14px;
+}
+
+.lines {
+  display: grid;
+  gap: 12px;
+}
+
+.lines li {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  font-size: 14px;
+}
+
+.lines img {
+  width: 52px;
+  height: 52px;
+  border-radius: var(--r);
+  object-fit: cover;
+}
+
+.lineText {
+  display: flex;
+  flex-direction: column;
+}
+
+.packPanel {
+  background: var(--lichen-tint);
+  border-color: transparent;
+}
+
+.base {
+  font-size: 15px;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 860px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 520px) {
+  .timeline {
+    grid-template-columns: 1fr 1fr;
+    row-gap: 16px;
+  }
+  .timeline li:nth-child(2)::before {
+    display: none;
+  }
+}

@@ -1,8 +1,8 @@
 import { createContext, useCallback, useContext, useMemo, type ReactNode } from 'react';
 import { useLocalStorage } from '../hooks/useLocalStorage';
 import { useToast } from './ToastContext';
-import { ADDRESSES, PAYMENT_METHODS } from '../data/products';
-import type { Address, PaymentMethod } from '../data/types';
+import { ADDRESSES, ORDERS, PAYMENT_METHODS } from '../data/products';
+import type { Address, Order, PaymentMethod } from '../data/types';
 
 export interface ProfileInfo {
   name: string;
@@ -10,13 +10,13 @@ export interface ProfileInfo {
   phone: string;
   location: string;
   memberSince: string;
-  avatar: string | null;
 }
 
 export interface NotificationSettings {
   orderUpdates: boolean;
+  priceDrops: boolean;
   restockAlerts: boolean;
-  newsletter: boolean;
+  fieldNotes: boolean;
 }
 
 const DEFAULT_PROFILE: ProfileInfo = {
@@ -25,13 +25,13 @@ const DEFAULT_PROFILE: ProfileInfo = {
   phone: '(503) 555-0142',
   location: 'Portland, OR',
   memberSince: '2023',
-  avatar: null,
 };
 
 const DEFAULT_NOTIFS: NotificationSettings = {
   orderUpdates: true,
-  restockAlerts: true,
-  newsletter: false,
+  priceDrops: true,
+  restockAlerts: false,
+  fieldNotes: false,
 };
 
 interface ProfileContextValue {
@@ -41,59 +41,59 @@ interface ProfileContextValue {
   toggleNotification: (key: keyof NotificationSettings) => void;
   addresses: Address[];
   addAddress: (a: Omit<Address, 'id'>) => void;
-  updateAddress: (id: string, patch: Partial<Address>) => void;
   removeAddress: (id: string) => void;
+  setDefaultAddress: (id: string) => void;
   paymentMethods: PaymentMethod[];
   addPaymentMethod: (p: Omit<PaymentMethod, 'id'>) => void;
   removePaymentMethod: (id: string) => void;
+  orders: Order[];
+  addOrder: (o: Order) => void;
 }
 
 const ProfileContext = createContext<ProfileContextValue | null>(null);
 
 export function ProfileProvider({ children }: { children: ReactNode }) {
-  const [profile, setProfile] = useLocalStorage<ProfileInfo>('tm.profile', DEFAULT_PROFILE);
-  const [notifications, setNotifications] = useLocalStorage<NotificationSettings>('tm.notifications', DEFAULT_NOTIFS);
-  const [addresses, setAddresses] = useLocalStorage<Address[]>('tm.addresses', ADDRESSES);
-  const [paymentMethods, setPaymentMethods] = useLocalStorage<PaymentMethod[]>('tm.payments', PAYMENT_METHODS);
+  const [profile, setProfile] = useLocalStorage<ProfileInfo>('tm2.profile', DEFAULT_PROFILE);
+  const [notifications, setNotifications] = useLocalStorage<NotificationSettings>('tm2.notifications', DEFAULT_NOTIFS);
+  const [addresses, setAddresses] = useLocalStorage<Address[]>('tm2.addresses', ADDRESSES);
+  const [paymentMethods, setPaymentMethods] = useLocalStorage<PaymentMethod[]>('tm2.payments', PAYMENT_METHODS);
+  const [orders, setOrders] = useLocalStorage<Order[]>('tm2.orders', ORDERS);
   const { showToast } = useToast();
 
   const updateProfile = useCallback(
     (patch: Partial<ProfileInfo>) => {
       setProfile((prev) => ({ ...prev, ...patch }));
-      showToast('Profile updated');
+      showToast('Account details saved');
     },
     [setProfile, showToast],
   );
 
   const toggleNotification = useCallback(
-    (k: keyof NotificationSettings) => {
-      setNotifications((prev) => ({ ...prev, [k]: !prev[k] }));
-    },
+    (k: keyof NotificationSettings) => setNotifications((prev) => ({ ...prev, [k]: !prev[k] })),
     [setNotifications],
   );
 
   const addAddress = useCallback(
     (a: Omit<Address, 'id'>) => {
       setAddresses((prev) => [...prev, { ...a, id: `addr-${Date.now()}` }]);
-      showToast('Address added');
-    },
-    [setAddresses, showToast],
-  );
-
-  const updateAddress = useCallback(
-    (id: string, patch: Partial<Address>) => {
-      setAddresses((prev) => prev.map((a) => (a.id === id ? { ...a, ...patch } : a)));
-      showToast('Address updated');
+      showToast('Address added', { sub: a.label });
     },
     [setAddresses, showToast],
   );
 
   const removeAddress = useCallback(
     (id: string) => {
+      const removed = addresses.find((a) => a.id === id);
       setAddresses((prev) => prev.filter((a) => a.id !== id));
-      showToast('Address removed');
+      if (removed)
+        showToast('Address removed', { sub: removed.label, action: { label: 'Undo', run: () => setAddresses((prev) => [...prev, removed]) } });
     },
-    [setAddresses, showToast],
+    [addresses, setAddresses, showToast],
+  );
+
+  const setDefaultAddress = useCallback(
+    (id: string) => setAddresses((prev) => prev.map((a) => ({ ...a, isDefault: a.id === id }))),
+    [setAddresses],
   );
 
   const addPaymentMethod = useCallback(
@@ -106,11 +106,15 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
 
   const removePaymentMethod = useCallback(
     (id: string) => {
+      const removed = paymentMethods.find((p) => p.id === id);
       setPaymentMethods((prev) => prev.filter((p) => p.id !== id));
-      showToast('Payment method removed');
+      if (removed)
+        showToast('Payment method removed', { action: { label: 'Undo', run: () => setPaymentMethods((prev) => [...prev, removed]) } });
     },
-    [setPaymentMethods, showToast],
+    [paymentMethods, setPaymentMethods, showToast],
   );
+
+  const addOrder = useCallback((o: Order) => setOrders((prev) => [o, ...prev]), [setOrders]);
 
   const value = useMemo(
     () => ({
@@ -120,11 +124,13 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
       toggleNotification,
       addresses,
       addAddress,
-      updateAddress,
       removeAddress,
+      setDefaultAddress,
       paymentMethods,
       addPaymentMethod,
       removePaymentMethod,
+      orders,
+      addOrder,
     }),
     [
       profile,
@@ -133,11 +139,13 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
       toggleNotification,
       addresses,
       addAddress,
-      updateAddress,
       removeAddress,
+      setDefaultAddress,
       paymentMethods,
       addPaymentMethod,
       removePaymentMethod,
+      orders,
+      addOrder,
     ],
   );
 

@@ -1,0 +1,93 @@
+.wrap {
+  display: grid;
+  gap: 8px;
+}
+
+.hist {
+  height: 36px;
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  padding: 0 9px;
+}
+
+.hist span {
+  flex: 1;
+  background: var(--inset-2);
+  border-radius: 2px 2px 0 0;
+  transition: background var(--fast) var(--ease);
+}
+
+.hist span[data-active='true'] {
+  background: var(--forest-3);
+}
+
+.track {
+  position: relative;
+  height: 20px;
+}
+
+.track::before {
+  content: '';
+  position: absolute;
+  left: 9px;
+  right: 9px;
+  top: 8px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--inset-2);
+}
+
+.fill {
+  position: absolute;
+  top: 8px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--forest);
+  margin: 0 9px;
+}
+
+.track input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  margin: 0;
+  background: none;
+  pointer-events: none;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.track input::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  pointer-events: auto;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 2px solid var(--forest);
+  box-shadow: 0 1px 3px rgba(21, 26, 22, 0.25);
+  cursor: grab;
+}
+
+.track input::-moz-range-thumb {
+  pointer-events: auto;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 2px solid var(--forest);
+  cursor: grab;
+}
+
+.track input:focus-visible::-webkit-slider-thumb {
+  outline: 2px solid var(--ember);
+  outline-offset: 2px;
+}
+
+.values {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12.5px;
+  color: var(--ink-2);
+}

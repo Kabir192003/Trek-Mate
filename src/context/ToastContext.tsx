@@ -1,13 +1,21 @@
 import { createContext, useCallback, useContext, useRef, useState, type ReactNode } from 'react';
 
+export interface ToastAction {
+  label: string;
+  run: () => void;
+}
+
 export interface ToastData {
-  msg: string;
+  id: number;
+  title: string;
   sub?: string;
+  action?: ToastAction;
 }
 
 interface ToastContextValue {
   toast: ToastData | null;
-  showToast: (msg: string, sub?: string) => void;
+  showToast: (title: string, opts?: { sub?: string; action?: ToastAction }) => void;
+  dismiss: () => void;
 }
 
 const ToastContext = createContext<ToastContextValue | null>(null);
@@ -15,14 +23,21 @@ const ToastContext = createContext<ToastContextValue | null>(null);
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toast, setToast] = useState<ToastData | null>(null);
   const timer = useRef<number | null>(null);
+  const seq = useRef(0);
 
-  const showToast = useCallback((msg: string, sub?: string) => {
-    setToast({ msg, sub });
+  const dismiss = useCallback(() => {
     if (timer.current) window.clearTimeout(timer.current);
-    timer.current = window.setTimeout(() => setToast(null), 2200);
+    setToast(null);
   }, []);
 
-  return <ToastContext.Provider value={{ toast, showToast }}>{children}</ToastContext.Provider>;
+  const showToast = useCallback((title: string, opts?: { sub?: string; action?: ToastAction }) => {
+    seq.current += 1;
+    setToast({ id: seq.current, title, sub: opts?.sub, action: opts?.action });
+    if (timer.current) window.clearTimeout(timer.current);
+    timer.current = window.setTimeout(() => setToast(null), opts?.action ? 5200 : 3200);
+  }, []);
+
+  return <ToastContext.Provider value={{ toast, showToast, dismiss }}>{children}</ToastContext.Provider>;
 }
 
 export function useToast() {

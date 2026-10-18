@@ -1,194 +1,244 @@
-import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, type FormEvent } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import s from './Checkout.module.css';
 import { Icon } from '../components/Icon';
-import { useCart } from '../context/CartContext';
+import { EmptyState } from '../components/ui';
+import { img } from '../data/img';
+import { useCart, FREE_SHIPPING_AT, SHIPPING_FLAT, EXPRESS_FEE } from '../context/CartContext';
 import { useProfile } from '../context/ProfileContext';
-import { productImg } from '../data/products';
-import styles from './Checkout.module.css';
+import { usePack } from '../context/PackContext';
+import { usePrefs } from '../context/PrefsContext';
+import { money, weight } from '../lib/format';
+import type { Order } from '../data/types';
 
-const SHIP_METHODS = [
-  { id: 'standard', name: 'Standard', sub: '5–8 business days', price: 0 },
-  { id: 'express', name: 'Express', sub: '2–3 business days', price: 18 },
-];
+type Method = 'standard' | 'express';
 
 export function Checkout() {
-  const { cart, subtotal, clearCart } = useCart();
-  const { addresses, paymentMethods, profile } = useProfile();
+  const cart = useCart();
+  const profile = useProfile();
+  const pack = usePack();
+  const { units } = usePrefs();
   const navigate = useNavigate();
+  const [email, setEmail] = useState(profile.profile.email);
+  const [addressId, setAddressId] = useState(profile.addresses.find((a) => a.isDefault)?.id ?? profile.addresses[0]?.id ?? '');
+  const [method, setMethod] = useState<Method>('standard');
+  const [payId, setPayId] = useState(profile.paymentMethods[0]?.id ?? '');
+  const [adding, setAdding] = useState(profile.addresses.length === 0);
+  const [draft, setDraft] = useState({ label: 'Home', name: profile.profile.name, line: '', city: '' });
+  const [markOwned, setMarkOwned] = useState(true);
+  const [placing, setPlacing] = useState(false);
 
-  const [placed, setPlaced] = useState(false);
-  const [addrId, setAddrId] = useState(addresses[0]?.id ?? '');
-  const [shipMethod, setShipMethod] = useState<'standard' | 'express'>('standard');
-  const [payId, setPayId] = useState(paymentMethods[0]?.id ?? '');
-  const [orderNo] = useState(() => `TM-${Math.floor(Math.random() * 900000 + 100000)}`);
-
-  const shipCost = shipMethod === 'express' ? 18 : 0;
-  const tax = (subtotal + shipCost) * 0.08;
-  const total = subtotal + shipCost + tax;
-
-  const deliveryEstimate = useMemo(() => {
-    const start = new Date();
-    const days = shipMethod === 'express' ? 3 : 6;
-    const end = new Date();
-    end.setDate(start.getDate() + days + 2);
-    start.setDate(start.getDate() + days);
-    const fmt = (d: Date) => d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
-    return `${fmt(start)} – ${fmt(end)}`;
-  }, [shipMethod]);
-
-  if (cart.length === 0 && !placed) {
+  if (!cart.entries.length) {
     return (
-      <div className="tm-container" style={{ padding: '80px 40px', textAlign: 'center' }}>
-        <div className={styles.confirmTitle}>Your cart is empty</div>
-        <p className={styles.confirmBody}>Add some gear before checking out.</p>
-        <button onClick={() => navigate('/browse')} className={`tm-btn tm-btn-primary ${styles.backHomeBtn}`}>
-          Browse gear
-        </button>
-      </div>
+      <main id="main" className={`container ${s.page}`}>
+        <EmptyState icon="bag" title="Nothing to check out" body="Your cart is empty. Plan your pack, then come back with only what you need." actions={[{ label: 'Plan your pack', to: '/pack', primary: true }, { label: 'Shop the gear', to: '/shop' }]} />
+      </main>
     );
   }
 
-  if (placed) {
-    return (
-      <div className="tm-container" style={{ padding: '80px 40px 100px' }}>
-        <div className={styles.confirmWrap}>
-          <div className={styles.confirmIcon}>
-            <Icon name="check" size={38} color="var(--tm-primary-on)" />
-          </div>
-          <h1 className={styles.confirmTitle}>Order placed.</h1>
-          <p className={styles.confirmBody}>
-            We'll send a tracking link to <b style={{ color: 'var(--tm-text)' }}>{profile.email}</b>. Most orders ship within 24h.
-          </p>
-          <div className={styles.confirmCard}>
-            <div className={styles.confirmLabel}>Order</div>
-            <div className={styles.confirmOrderRow}>
-              <span className={styles.mono}>#{orderNo}</span>
-              <span className={`${styles.mono} ${styles.confirmTotal}`}>${total.toFixed(2)}</span>
-            </div>
-            <div className={styles.confirmDivider} />
-            <div className={styles.confirmDelivery}>
-              <Icon name="truck" size={16} color="var(--tm-text-soft)" /> Est. delivery · {deliveryEstimate}
-            </div>
-          </div>
-          <button
-            onClick={() => {
-              clearCart();
-              navigate('/');
-            }}
-            className={`tm-btn ${styles.backHomeBtn}`}
-          >
-            Back to home
-          </button>
-        </div>
-      </div>
-    );
-  }
+  const standard = cart.subtotal >= FREE_SHIPPING_AT ? 0 : SHIPPING_FLAT;
+  const shipping = method === 'express' ? EXPRESS_FEE : standard;
+  const total = cart.subtotal + shipping;
+  const address = profile.addresses.find((a) => a.id === addressId);
+  const pay = profile.paymentMethods.find((p) => p.id === payId);
+  const ready = !!address && !!pay && email.includes('@');
+
+  const saveAddress = (e: FormEvent) => {
+    e.preventDefault();
+    if (!draft.line.trim() || !draft.city.trim()) return;
+    profile.addAddress({ ...draft, isDefault: profile.addresses.length === 0 });
+    setAdding(false);
+  };
+
+  const place = () => {
+    if (!ready || placing) return;
+    setPlacing(true);
+    const id = `TM-${Math.floor(500000 + Math.random() * 400000)}`;
+    const order: Order = {
+      id,
+      date: new Date().toISOString().slice(0, 10),
+      itemCount: cart.count,
+      status: 'Processing',
+      total,
+      lines: cart.entries.map((e) => ({ productId: e.productId, name: e.product.name, qty: e.qty, price: e.product.price, color: e.color, size: e.size })),
+      shipTo: `${address!.label} · ${address!.city}`,
+      method: method === 'express' ? `Express · ${money(EXPRESS_FEE)}` : `Standard · ${standard ? money(standard) : 'free'}`,
+      tracking: `TM 7731 ${id.slice(3, 7)} ${id.slice(7)}0`,
+    };
+    profile.addOrder(order);
+    if (markOwned) pack.markOwned(cart.entries.map((e) => e.productId));
+    cart.clear();
+    navigate(`/order/${id}`, { replace: true });
+  };
 
   return (
-    <div className="tm-container" style={{ padding: '40px 40px 100px' }}>
-      <div className={styles.title}>Checkout</div>
-      <div className="tm-checkout-grid">
-        <div className={styles.left}>
-          <div>
-            <div className={styles.sectionHead}>Deliver to</div>
-            <div className={styles.optionList}>
-              {addresses.map((a) => (
-                <button key={a.id} onClick={() => setAddrId(a.id)} className={styles.optionCard} data-active={addrId === a.id}>
-                  <Icon name="pin" size={18} color={addrId === a.id ? 'var(--tm-primary)' : 'var(--tm-text-mute)'} />
-                  <div>
-                    <div className={styles.optionName}>
-                      {a.name} · {a.label}
-                    </div>
-                    <div className={styles.optionSub}>
+    <main id="main" className={`container ${s.page}`}>
+      <Link to="/cart" className={s.back}>
+        <Icon name="back" size={16} /> Back to cart
+      </Link>
+      <h1 className="h1">Checkout</h1>
+
+      <div className={s.layout}>
+        <div className={s.steps}>
+          <section className={`panel ${s.step}`} aria-labelledby="st-1">
+            <h2 id="st-1" className={s.stepTitle}>
+              <span>1</span> Contact
+            </h2>
+            <div className="field">
+              <label className="label" htmlFor="co-email">
+                Email for order updates
+              </label>
+              <input id="co-email" className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+            </div>
+          </section>
+
+          <section className={`panel ${s.step}`} aria-labelledby="st-2">
+            <h2 id="st-2" className={s.stepTitle}>
+              <span>2</span> Delivery address
+            </h2>
+            <div className={s.options} role="radiogroup" aria-label="Delivery address">
+              {profile.addresses.map((a) => (
+                <label key={a.id} className={s.option} data-on={a.id === addressId}>
+                  <input type="radio" name="address" checked={a.id === addressId} onChange={() => setAddressId(a.id)} />
+                  <span className={s.optionBody}>
+                    <strong>
+                      {a.label}
+                      {a.isDefault && <span className="chip" style={{ marginLeft: 8 }}>Default</span>}
+                    </strong>
+                    <span>{a.name}</span>
+                    <span className="muted">
                       {a.line}, {a.city}
-                    </div>
-                  </div>
-                </button>
-              ))}
-              {addresses.length === 0 && <div className={styles.optionSub}>No saved addresses — add one from your profile.</div>}
-            </div>
-          </div>
-
-          <div>
-            <div className={styles.sectionHead}>Shipping method</div>
-            <div className={styles.optionList}>
-              {SHIP_METHODS.map((m) => (
-                <button key={m.id} onClick={() => setShipMethod(m.id as 'standard' | 'express')} className={styles.optionCardRadio} data-active={shipMethod === m.id}>
-                  <div className={styles.radioDot} data-active={shipMethod === m.id} />
-                  <div className={styles.optionFlex}>
-                    <div className={styles.optionName}>{m.name}</div>
-                    <div className={styles.optionSubSmall}>{m.sub}</div>
-                  </div>
-                  <div className={styles.mono}>{m.price ? `$${m.price}` : 'Free'}</div>
-                </button>
+                    </span>
+                  </span>
+                </label>
               ))}
             </div>
-          </div>
-
-          <div>
-            <div className={styles.sectionHead}>Payment</div>
-            <div className={styles.optionList}>
-              {paymentMethods.map((m) => (
-                <button key={m.id} onClick={() => setPayId(m.id)} className={styles.optionCardRadio} data-active={payId === m.id}>
-                  <div className={styles.radioDot} data-active={payId === m.id} />
-                  <div className={styles.optionFlex}>
-                    <div className={styles.optionName}>{m.label}</div>
-                    <div className={styles.optionSubSmall}>{m.sub}</div>
-                  </div>
-                  <Icon name="card" size={20} color="var(--tm-text-soft)" />
-                </button>
-              ))}
-              {paymentMethods.length === 0 && <div className={styles.optionSub}>No saved payment methods — add one from your profile.</div>}
-            </div>
-          </div>
-        </div>
-
-        <div className={styles.summaryCol}>
-          <div className={styles.summaryCard}>
-            <div className={styles.summaryHead}>Order · {cart.length} items</div>
-            <div className={styles.orderItems}>
-              {cart.map((it) => (
-                <div key={it.id + it.size + it.color} className={styles.orderItem}>
-                  <div className={styles.orderItemImg}>
-                    <img src={productImg(it.img, 120, 140)} alt={it.name} />
-                  </div>
-                  <div className={styles.orderItemBody}>
-                    <div className={styles.orderItemName}>{it.name}</div>
-                    <div className={styles.orderItemQty}>Qty {it.qty}</div>
-                  </div>
-                  <div className={styles.mono}>${(it.price * it.qty).toFixed(0)}</div>
+            {adding ? (
+              <form className={s.addForm} onSubmit={saveAddress}>
+                <div className="field">
+                  <label className="label" htmlFor="na-label">
+                    Label
+                  </label>
+                  <input id="na-label" className="input" value={draft.label} onChange={(e) => setDraft({ ...draft, label: e.target.value })} />
                 </div>
+                <div className="field">
+                  <label className="label" htmlFor="na-name">
+                    Name
+                  </label>
+                  <input id="na-name" className="input" value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} />
+                </div>
+                <div className={`field ${s.wide}`}>
+                  <label className="label" htmlFor="na-line">
+                    Street address
+                  </label>
+                  <input id="na-line" className="input" required value={draft.line} onChange={(e) => setDraft({ ...draft, line: e.target.value })} />
+                </div>
+                <div className={`field ${s.wide}`}>
+                  <label className="label" htmlFor="na-city">
+                    City, state and ZIP
+                  </label>
+                  <input id="na-city" className="input" required placeholder="Portland, OR 97211" value={draft.city} onChange={(e) => setDraft({ ...draft, city: e.target.value })} />
+                </div>
+                <div className={s.wide}>
+                  <button type="submit" className="btn btn-primary btn-sm">
+                    Save address
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <button type="button" className={`link ${s.addLink}`} onClick={() => setAdding(true)}>
+                + Add a new address
+              </button>
+            )}
+          </section>
+
+          <section className={`panel ${s.step}`} aria-labelledby="st-3">
+            <h2 id="st-3" className={s.stepTitle}>
+              <span>3</span> Delivery speed
+            </h2>
+            <div className={s.options} role="radiogroup" aria-label="Delivery speed">
+              <label className={s.option} data-on={method === 'standard'}>
+                <input type="radio" name="method" checked={method === 'standard'} onChange={() => setMethod('standard')} />
+                <span className={s.optionBody}>
+                  <strong>Standard · 3 to 5 business days</strong>
+                  <span className="muted">Weighed and packed in Portland the day you order</span>
+                </span>
+                <span className="num">{standard ? money(standard) : 'Free'}</span>
+              </label>
+              <label className={s.option} data-on={method === 'express'}>
+                <input type="radio" name="method" checked={method === 'express'} onChange={() => setMethod('express')} />
+                <span className={s.optionBody}>
+                  <strong>Express · 1 to 2 business days</strong>
+                  <span className="muted">For trips that start this weekend</span>
+                </span>
+                <span className="num">{money(EXPRESS_FEE)}</span>
+              </label>
+            </div>
+          </section>
+
+          <section className={`panel ${s.step}`} aria-labelledby="st-4">
+            <h2 id="st-4" className={s.stepTitle}>
+              <span>4</span> Payment
+            </h2>
+            <div className={s.options} role="radiogroup" aria-label="Payment method">
+              {profile.paymentMethods.map((p) => (
+                <label key={p.id} className={s.option} data-on={p.id === payId}>
+                  <input type="radio" name="pay" checked={p.id === payId} onChange={() => setPayId(p.id)} />
+                  <Icon name={p.kind === 'card' ? 'card' : 'lock'} size={18} />
+                  <span className={s.optionBody}>
+                    <strong>{p.label}</strong>
+                    <span className="muted">{p.sub}</span>
+                  </span>
+                </label>
               ))}
             </div>
-            <div className={styles.confirmDivider} style={{ margin: '0 0 14px' }} />
-            <div className={styles.summaryRow}>
-              <span>Subtotal</span>
-              <span className={styles.mono}>${subtotal.toFixed(0)}</span>
-            </div>
-            <div className={styles.summaryRow}>
-              <span>Shipping</span>
-              <span className={styles.mono}>{shipCost ? `$${shipCost}` : 'Free'}</span>
-            </div>
-            <div className={styles.summaryRow}>
-              <span>Tax</span>
-              <span className={styles.mono}>${tax.toFixed(2)}</span>
-            </div>
-            <div className={styles.confirmDivider} style={{ margin: '4px 0 14px' }} />
-            <div className={styles.totalRow}>
-              <span>Total</span>
-              <span className={styles.mono}>${total.toFixed(2)}</span>
-            </div>
-            <button
-              onClick={() => setPlaced(true)}
-              disabled={!addrId || !payId}
-              className={`tm-btn tm-btn-primary ${styles.placeBtn}`}
-            >
-              Place order · ${total.toFixed(2)}
-            </button>
-            <div className={styles.terms}>By placing this order you agree to Trek Mate's terms and 30-day return policy.</div>
-          </div>
+            <p className={s.demo}>
+              <Icon name="info" size={15} /> This is a portfolio demo store. No payment is taken and nothing ships.
+            </p>
+          </section>
         </div>
+
+        <aside className={`panel ${s.summary}`} aria-label="Order summary">
+          <h2 className="h3">Your order</h2>
+          <ul className={s.items}>
+            {cart.entries.map((e) => (
+              <li key={e.key}>
+                <span className={s.itemImg}>
+                  <img src={img(e.product.img, 120, 120)} alt="" />
+                  <span className={s.qty}>{e.qty}</span>
+                </span>
+                <span className={s.itemText}>
+                  <strong>{e.product.name}</strong>
+                  <span className="muted">{[e.color, e.size].filter(Boolean).join(' · ')}</span>
+                </span>
+                <span className="num">{money(e.product.price * e.qty)}</span>
+              </li>
+            ))}
+          </ul>
+          <dl className="kv">
+            <dt>Subtotal</dt>
+            <dd>{money(cart.subtotal)}</dd>
+            <dt>Shipping</dt>
+            <dd>{shipping ? money(shipping) : 'Free'}</dd>
+            <dt>Sales tax</dt>
+            <dd>$0 · Oregon</dd>
+            <dt>Parcel weight</dt>
+            <dd>{weight(cart.grams, units)}</dd>
+          </dl>
+          <div className={s.total}>
+            <span>Total</span>
+            <span className="num">{money(total)}</span>
+          </div>
+          <label className={s.ownRow}>
+            <input type="checkbox" className="checkbox" checked={markOwned} onChange={(e) => setMarkOwned(e.target.checked)} />
+            <span>Mark these as owned in my pack, so swaps price against them</span>
+          </label>
+          <button type="button" className="btn btn-primary btn-block" style={{ height: 52 }} disabled={!ready || placing} onClick={place}>
+            <Icon name="lock" size={16} /> Place order · {money(total)}
+          </button>
+          {!ready && <p className={s.fine}>Add a delivery address and payment method to continue.</p>}
+        </aside>
       </div>
-    </div>
+    </main>
   );
 }

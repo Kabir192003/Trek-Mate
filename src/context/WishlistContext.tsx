@@ -1,38 +1,35 @@
 import { createContext, useCallback, useContext, useMemo, type ReactNode } from 'react';
 import { useLocalStorage } from '../hooks/useLocalStorage';
 import { useToast } from './ToastContext';
+import { getProduct } from '../data/products';
 
 interface WishlistContextValue {
-  wishlist: string[];
-  toggleWish: (id: string) => void;
-  isWished: (id: string) => boolean;
+  ids: string[];
+  toggle: (id: string) => void;
+  has: (id: string) => boolean;
 }
 
 const WishlistContext = createContext<WishlistContextValue | null>(null);
 
 export function WishlistProvider({ children }: { children: ReactNode }) {
-  const [wishlist, setWishlist] = useLocalStorage<string[]>('tm.wishlist', ['p3', 'p7']);
+  const [ids, setIds] = useLocalStorage<string[]>('tm2.saved', ['p10', 'p4', 'p7']);
   const { showToast } = useToast();
 
-  const toggleWish = useCallback(
+  const toggle = useCallback(
     (id: string) => {
-      setWishlist((prev) => {
-        const has = prev.includes(id);
-        if (has) {
-          showToast('Removed from saved gear');
-          return prev.filter((x) => x !== id);
-        }
-        showToast('Saved for later');
-        return [...prev, id];
+      const name = getProduct(id)?.name;
+      const had = ids.includes(id);
+      setIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+      showToast(had ? 'Removed from saved gear' : 'Saved for later', {
+        sub: name,
+        action: had ? { label: 'Undo', run: () => setIds((prev) => (prev.includes(id) ? prev : [...prev, id])) } : undefined,
       });
     },
-    [setWishlist, showToast],
+    [ids, setIds, showToast],
   );
 
-  const isWished = useCallback((id: string) => wishlist.includes(id), [wishlist]);
-
-  const value = useMemo(() => ({ wishlist, toggleWish, isWished }), [wishlist, toggleWish, isWished]);
-
+  const has = useCallback((id: string) => ids.includes(id), [ids]);
+  const value = useMemo(() => ({ ids, toggle, has }), [ids, toggle, has]);
   return <WishlistContext.Provider value={value}>{children}</WishlistContext.Provider>;
 }
 

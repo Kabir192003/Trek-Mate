@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react';
 
-export function useLocalStorage<T>(key: string, initial: T) {
+/** State that persists to localStorage. `initial` may be a lazy factory. */
+export function useLocalStorage<T>(key: string, initial: T | (() => T)) {
   const [value, setValue] = useState<T>(() => {
+    const fallback = () => (typeof initial === 'function' ? (initial as () => T)() : initial);
     try {
       const raw = window.localStorage.getItem(key);
-      return raw ? (JSON.parse(raw) as T) : initial;
+      return raw ? (JSON.parse(raw) as T) : fallback();
     } catch {
-      return initial;
+      return fallback();
     }
   });
 
@@ -14,7 +16,7 @@ export function useLocalStorage<T>(key: string, initial: T) {
     try {
       window.localStorage.setItem(key, JSON.stringify(value));
     } catch {
-      /* storage unavailable — ignore */
+      /* storage unavailable (private mode): keep working in memory */
     }
   }, [key, value]);
 

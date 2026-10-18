@@ -1,72 +1,110 @@
 import { createContext, useCallback, useContext, useMemo, type ReactNode } from 'react';
 import { useLocalStorage } from '../hooks/useLocalStorage';
 import { useToast } from './ToastContext';
-import type { CartItem, Product } from '../data/types';
+import { getProduct } from '../data/products';
+import type { Product } from '../data/types';
+
+export interface CartLine {
+  productId: string;
+  color: string;
+  size: string;
+  qty: number;
+}
+
+export interface CartEntry extends CartLine {
+  product: Product;
+  key: string;
+}
 
 interface CartContextValue {
-  cart: CartItem[];
-  addToCart: (product: Product, color: string, size: string, qty?: number) => void;
-  changeQty: (item: CartItem, delta: number) => void;
-  removeItem: (item: CartItem) => void;
-  clearCart: () => void;
+  entries: CartEntry[];
+  add: (p: Product, opts?: { color?: string; size?: string; qty?: number; quiet?: boolean }) => void;
+  addMany: (ps: Product[]) => void;
+  setQty: (key: string, qty: number) => void;
+  remove: (key: string) => void;
+  clear: () => void;
   subtotal: number;
-  itemCount: number;
+  count: number;
+  grams: number;
 }
 
 const CartContext = createContext<CartContextValue | null>(null);
+const keyOf = (l: Pick<CartLine, 'productId' | 'size' | 'color'>) => `${l.productId}__${l.size}__${l.color}`;
 
-const key = (id: string, size: string, color: string) => `${id}__${size}__${color}`;
+export const FREE_SHIPPING_AT = 150;
+export const SHIPPING_FLAT = 8;
+export const EXPRESS_FEE = 18;
 
 export function CartProvider({ children }: { children: ReactNode }) {
-  const [cart, setCart] = useLocalStorage<CartItem[]>('tm.cart', []);
+  const [lines, setLines] = useLocalStorage<CartLine[]>('tm2.cart', []);
   const { showToast } = useToast();
 
-  const addToCart = useCallback(
-    (product: Product, color: string, size: string, qty = 1) => {
-      setCart((prev) => {
-        const idx = prev.findIndex((x) => key(x.id, x.size, x.color) === key(product.id, size, color));
-        if (idx >= 0) {
-          const next = [...prev];
-          next[idx] = { ...next[idx], qty: next[idx].qty + qty };
-          return next;
-        }
-        return [...prev, { ...product, color, size, qty }];
+  const upsert = useCallback(
+    (l: CartLine) =>
+      setLines((prev) => {
+        const k = keyOf(l);
+        const i = prev.findIndex((x) => keyOf(x) === k);
+        if (i < 0) return [...prev, l];
+        const next = [...prev];
+        next[i] = { ...next[i], qty: next[i].qty + l.qty };
+        return next;
+      }),
+    [setLines],
+  );
+
+  const add = useCallback<CartContextValue['add']>(
+    (p, opts) => {
+      upsert({ productId: p.id, color: opts?.color ?? p.colors[0]?.name ?? '', size: opts?.size ?? p.sizes[0] ?? '', qty: opts?.qty ?? 1 });
+      if (!opts?.quiet) showToast('Added to cart', { sub: p.name });
+    },
+    [upsert, showToast],
+  );
+
+  const addMany = useCallback(
+    (ps: Product[]) => {
+      ps.forEach((p) => upsert({ productId: p.id, color: p.colors[0]?.name ?? '', size: p.sizes[0] ?? '', qty: 1 }));
+      showToast(`${ps.length} item${ps.length === 1 ? '' : 's'} added to cart`, { sub: 'Only what your pack is missing' });
+    },
+    [upsert, showToast],
+  );
+
+  const setQty = useCallback(
+    (key: string, qty: number) => setLines((prev) => prev.map((l) => (keyOf(l) === key ? { ...l, qty: Math.max(1, Math.min(9, qty)) } : l))),
+    [setLines],
+  );
+
+  const remove = useCallback(
+    (key: string) => {
+      const removed = lines.find((l) => keyOf(l) === key);
+      setLines((prev) => prev.filter((l) => keyOf(l) !== key));
+      if (!removed) return;
+      showToast('Removed from cart', {
+        sub: getProduct(removed.productId)?.name,
+        action: { label: 'Undo', run: () => upsert(removed) },
       });
-      showToast('Added to cart', product.name);
     },
-    [setCart, showToast],
+    [lines, setLines, showToast, upsert],
   );
 
-  const changeQty = useCallback(
-    (item: CartItem, delta: number) => {
-      setCart((prev) =>
-        prev.map((x) =>
-          key(x.id, x.size, x.color) === key(item.id, item.size, item.color)
-            ? { ...x, qty: Math.max(1, x.qty + delta) }
-            : x,
-        ),
-      );
-    },
-    [setCart],
+  const clear = useCallback(() => setLines([]), [setLines]);
+
+  const entries = useMemo<CartEntry[]>(
+    () =>
+      lines.flatMap((l) => {
+        const product = getProduct(l.productId);
+        return product ? [{ ...l, product, key: keyOf(l) }] : [];
+      }),
+    [lines],
   );
 
-  const removeItem = useCallback(
-    (item: CartItem) => {
-      setCart((prev) => prev.filter((x) => key(x.id, x.size, x.color) !== key(item.id, item.size, item.color)));
-    },
-    [setCart],
-  );
-
-  const clearCart = useCallback(() => setCart([]), [setCart]);
-
-  const subtotal = useMemo(() => cart.reduce((s, it) => s + it.price * it.qty, 0), [cart]);
-  const itemCount = useMemo(() => cart.reduce((s, it) => s + it.qty, 0), [cart]);
+  const subtotal = useMemo(() => entries.reduce((s, e) => s + e.product.price * e.qty, 0), [entries]);
+  const count = useMemo(() => entries.reduce((s, e) => s + e.qty, 0), [entries]);
+  const grams = useMemo(() => entries.reduce((s, e) => s + e.product.measuredGrams * e.qty, 0), [entries]);
 
   const value = useMemo(
-    () => ({ cart, addToCart, changeQty, removeItem, clearCart, subtotal, itemCount }),
-    [cart, addToCart, changeQty, removeItem, clearCart, subtotal, itemCount],
+    () => ({ entries, add, addMany, setQty, remove, clear, subtotal, count, grams }),
+    [entries, add, addMany, setQty, remove, clear, subtotal, count, grams],
   );
-
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
 }
 
